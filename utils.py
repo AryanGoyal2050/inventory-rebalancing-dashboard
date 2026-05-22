@@ -473,3 +473,74 @@ def create_route_summary_df(
     )
 
     return route_summary_df
+
+import pandas as pd
+
+def generate_inventory_summary(all_inventory, product_category_df):
+
+    # combine all product-level dfs
+    inventory_summary_df = pd.concat(
+        all_inventory,
+        ignore_index=True
+    )
+
+    # add category
+    inventory_summary_df = inventory_summary_df.merge(
+        product_category_df[["Product", "Category"]],
+        on="Product",
+        how="left"
+    )
+
+    # select required columns
+    inventory_summary_df = inventory_summary_df[
+        [
+            "Hub",
+            "Product",
+            "Category",
+            "RF",
+            "RT",
+            "inv_days",
+            "post_ship_RT",
+            "post_ship_inv_days"
+        ]
+    ].copy()
+
+    # rename columns
+    inventory_summary_df.rename(
+        columns={
+            "RT": "Current Inv",
+            "post_ship_RT": "Post Ship Inv",
+            "inv_days": "Current Inv Days",
+            "post_ship_inv_days": "Post Ship Inv Days"
+        },
+        inplace=True
+    )
+
+    return inventory_summary_df
+
+def generate_shipment_summary(all_shipments, product_category_df):
+
+    # combine shipments
+    if all_shipments:
+        shipment_summary_df = pd.concat(
+            all_shipments,
+            ignore_index=True
+        )
+    else:
+        shipment_summary_df = pd.DataFrame(
+            columns=[
+                "From",
+                "To",
+                "Quantity",
+                "Product"
+            ]
+        )
+
+    # add category
+    shipment_summary_df = shipment_summary_df.merge(
+        product_category_df[["Product", "Category"]],
+        on="Product",
+        how="left"
+    )
+
+    return shipment_summary_df
