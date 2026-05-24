@@ -212,35 +212,127 @@ def render_inventory_days_chart(df):
 
 def render_inventory_quantity_chart(df):
 
-    plot_df = df.sort_values(
+    plot_df = df.copy()
+
+    # =========================================
+    # SORT
+    # =========================================
+
+    plot_df = plot_df.sort_values(
         by="Current Inv",
         ascending=False
     )
 
+    # =========================================
+    # CONVERT HUBS TO STRING
+    # =========================================
+
+    plot_df["Hub"] = plot_df["Hub"].astype(str)
+
+    # =========================================
+    # CONVERT TO MT FOR BETTER READABILITY
+    # =========================================
+
+    plot_df["Current Inv MT"] = (
+        plot_df["Current Inv"] / 1000
+    )
+
+    plot_df["Post Ship Inv MT"] = (
+        plot_df["Post Ship Inv"] / 1000
+    )
+
+    # =========================================
+    # FIGURE
+    # =========================================
+
     fig = go.Figure()
 
+    # BEFORE
     fig.add_trace(
         go.Bar(
             name="Before Transfer",
-            x=plot_df["Hub"].astype(str),
-            y=plot_df["Current Inv"]
+
+            x=plot_df["Hub"],
+
+            y=plot_df["Current Inv MT"],
+
+            text=plot_df[
+                "Current Inv MT"
+            ].round(1),
+
+            textposition="outside",
+
+            customdata=plot_df[
+                "Current Inv"
+            ],
+
+            hovertemplate=
+            (
+                "<b>Hub:</b> %{x}<br>"
+                "<b>Inventory:</b> %{customdata:,.0f} kg"
+                "<extra></extra>"
+            ),
+
+            width=0.4
         )
     )
 
+    # AFTER
     fig.add_trace(
         go.Bar(
             name="After Transfer",
-            x=plot_df["Hub"].astype(str),
-            y=plot_df["Post Ship Inv"]
+
+            x=plot_df["Hub"],
+
+            y=plot_df["Post Ship Inv MT"],
+
+            text=plot_df[
+                "Post Ship Inv MT"
+            ].round(1),
+
+            textposition="outside",
+
+            customdata=plot_df[
+                "Post Ship Inv"
+            ],
+
+            hovertemplate=
+            (
+                "<b>Hub:</b> %{x}<br>"
+                "<b>Inventory:</b> %{customdata:,.0f} kg"
+                "<extra></extra>"
+            ),
+
+            width=0.4
         )
     )
 
+    # =========================================
+    # LAYOUT
+    # =========================================
+
     fig.update_layout(
+
         title="Inventory Quantity by Hub",
+
         barmode="group",
+
+        height=600,
+
         xaxis_title="Hub",
-        yaxis_title="Quantity (kg)",
-        height=500
+
+        yaxis_title="Inventory Quantity (MT)",
+
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+
+        xaxis=dict(
+            type="category",
+            tickmode="array",
+            tickvals=plot_df["Hub"],
+            ticktext=plot_df["Hub"],
+            tickangle=-45
+        )
     )
 
     st.plotly_chart(
