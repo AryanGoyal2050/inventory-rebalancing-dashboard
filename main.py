@@ -30,9 +30,9 @@ def main():
     output_dir = Path("outputs")
     output_dir.mkdir(exist_ok=True)
 
-    inventory_path = r"vp_sheet_21_05.xlsx"
-    cost_matrix_path = r"cost_matrix.xlsx"
-    product_master_path = r"product_list.xlsx"
+    inventory_path = r"inputs/vp_sheet_21_05.xlsx"
+    cost_matrix_path = r"inputs/cost_matrix.xlsx"
+    product_master_path = r"inputs/product_list.xlsx"
 
     inventory_df = load_inventory_data(inventory_path)
     cost_matrix = load_cost_matrix(cost_matrix_path)
