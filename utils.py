@@ -544,3 +544,53 @@ def generate_shipment_summary(all_shipments, product_category_df):
     )
 
     return shipment_summary_df
+
+def generate_route_analysis(shipment_summary_df):
+
+    if shipment_summary_df.empty:
+
+        return pd.DataFrame(
+            columns=[
+                "Source",
+                "Destination",
+                "Total Qty",
+                "Products"
+            ]
+        )
+
+    route_df = (
+        shipment_summary_df
+        .groupby(
+            ["From", "To"]
+        )
+        .agg(
+            {
+                "Quantity": "sum",
+                "Product": lambda x:
+                    ", ".join(
+                        map(
+                            str,
+                            sorted(x.unique())
+                        )
+                    )
+            }
+        )
+        .reset_index()
+    )
+
+    route_df.rename(
+        columns={
+            "From": "Source",
+            "To": "Destination",
+            "Quantity": "Total Qty",
+            "Product": "Products"
+        },
+        inplace=True
+    )
+
+    route_df = route_df.sort_values(
+        by="Total Qty",
+        ascending=False
+    )
+
+    return route_df

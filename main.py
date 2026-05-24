@@ -88,6 +88,9 @@ def main():
     shipment_summary_df = generate_shipment_summary(all_shipments, product_category_df)
     shipment_summary_df.to_excel(output_dir / "shipment_summary.xlsx", index=False)
 
+    route_analysis_df = generate_route_analysis(shipment_summary_df)
+    route_analysis_df.to_excel(output_dir / "route_analysis.xlsx",index=False)
+
     print("\nALL PRODUCTS COMPLETED")
 
 
