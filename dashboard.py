@@ -43,8 +43,6 @@ def render_dispatch_manifest(
         .index
     )
 
-    # print(destination_df)
-
     for destination in destination_order:
 
         destination_df = filtered_df[
@@ -60,18 +58,32 @@ def render_dispatch_manifest(
             destination_df["Quantity"].sum()
         )
 
+        # If not found, put destination name as "Unknown"
+        destinaiton_name = hub_df.loc[
+            hub_df["Hub"] == destination,
+            "Hub Compress"
+        ].iloc[0]
+
+        if pd.isna(destinaiton_name):
+            destinaiton_name = "Unknown"
+
         st.markdown(
             f"""
-            ### {destination} - ({round(destination_total/1000, 2)} MT)
+            ### {destinaiton_name} - {round(destination_total/1000, 2)} MT
             """
         )
 
         for _, row in destination_df.iterrows():
 
+            product_name = product_df.loc[
+                product_df["Product"] == row["Product"],
+                "Product Name"
+            ].iloc[0]
+
             st.markdown(
                 f"""
-                • Product {int(row['Product'])}
-                — {round(row['Quantity']/1000, 2)} MT
+                • {product_name} ({row['Product']})
+                — {round(row['Quantity'], 2)} KG
                 """
             )
 
@@ -391,10 +403,8 @@ def render_excess_table(df):
     excess_df = df.copy()
 
     excess_df["Excess Qty"] = (
-
         excess_df["Post Ship Inv Days"]
         - 21
-
     ) * excess_df["RF"] / 30
 
     excess_df["Excess Qty"] = excess_df[
@@ -451,15 +461,25 @@ route_df = pd.read_excel(
     "outputs/route_analysis.xlsx"
 )
 
+product_df = pd.read_excel(
+    "inputs/product_list.xlsx"
+)
+
+hub_df = pd.read_excel(
+    "inputs/hub_list.xlsx"
+)
+
+st.title("Inventory Rebalancing Dashboard")
+
 # ==========================================
 # TABS
 # ==========================================
 
 tab1, tab2, tab3 = st.tabs(
     [
-        "Route Analysis",
-        "Tab 2",
-        "Tab 3"
+        "Overall Summary",
+        "Hub View",
+        "Product View"
     ]
 )
 
@@ -469,7 +489,7 @@ tab1, tab2, tab3 = st.tabs(
 
 with tab1:
 
-    st.title("Route Wise Analysis")
+    st.title("Overall Summary")
 
     # --------------------------------------
     # TOP OUTGOING
@@ -518,21 +538,160 @@ with tab1:
     )
 
 # ==========================================
-# TAB 2
+# TAB 2 - Hub View
 # ==========================================
 
 with tab2:
-
-    st.title("Hub Dispatch Analysis")
 
     hub_list = sorted(
         shipment_df["From"].unique()
     )
 
+    st.title("Select Hub")
+    
     selected_hub = st.selectbox(
-        "Select Source Hub",
-        hub_list
+        "Select Hub",
+        hub_list,
+        label_visibility="collapsed"
     )
+
+    hub_inventory_df = inventory_df[
+        inventory_df["Hub"] == selected_hub
+    ].copy()
+    hub_inventory_df = hub_inventory_df[
+        hub_inventory_df["RF"] > 0
+    ]
+
+    # =========================================================
+    # INVENTORY TARGETS
+    # =========================================================
+
+    TARGET_INV_DAYS = 21
+
+    # =========================================================
+    # DAILY DEMAND
+    # RF = monthly demand
+    # =========================================================
+
+    hub_inventory_df["daily_demand"] = (
+        hub_inventory_df["RF"] / 30
+    )
+
+    # =========================================================
+    # SHORTAGE / EXCESS CALCULATION
+    # =========================================================
+
+    hub_inventory_df["target_stock"] = (
+        TARGET_INV_DAYS *
+        hub_inventory_df["daily_demand"]
+    )
+
+    hub_inventory_df["inventory_gap"] = (
+        hub_inventory_df["Current Inv"] -
+        hub_inventory_df["target_stock"]
+    )
+
+    # =========================================================
+    # SHORTAGES
+    # current inv days < target
+    # =========================================================
+
+    shortage_df = hub_inventory_df[
+        hub_inventory_df["Current Inv Days"] < TARGET_INV_DAYS
+    ].copy()
+
+    shortage_df["Shortage (KG)"] = abs(
+        shortage_df["inventory_gap"]
+    ).round(0)
+
+    shortage_df["RF"] = shortage_df["RF"].round(0)
+    shortage_df["Current Inv Days"] = shortage_df["Current Inv Days"].round(2)
+
+    shortage_df["Product Name"] = shortage_df["Product"].map(
+        product_df.set_index("Product")["Product Name"]
+    )
+
+    shortage_df = shortage_df[[
+        "Product",
+        "Product Name",
+        "RF",
+        "Current Inv",
+        "Current Inv Days",
+        "Shortage (KG)"
+    ]]
+
+    shortage_df = shortage_df.sort_values(
+        by="Shortage (KG)",
+        ascending=False
+    )
+
+    # =========================================================
+    # EXCESSES
+    # current inv days > target
+    # =========================================================
+
+    excess_df = hub_inventory_df[
+        hub_inventory_df["Current Inv Days"] > TARGET_INV_DAYS
+    ].copy()
+
+    excess_df["Excess (KG)"] = (
+        excess_df["inventory_gap"]
+    ).round(0)
+
+    excess_df["RF"] = excess_df["RF"].round(0)
+    excess_df["Current Inv Days"] = excess_df["Current Inv Days"].round(2)
+
+    excess_df["Product Name"] = excess_df["Product"].map(
+        product_df.set_index("Product")["Product Name"]
+    )
+
+    excess_df = excess_df[[
+        "Product",
+        "Product Name",
+        "RF",
+        "Current Inv",
+        "Current Inv Days",
+        "Excess (KG)"
+    ]]
+
+    excess_df = excess_df.sort_values(
+        by="Excess (KG)",
+        ascending=False
+    )
+
+    # =========================================================
+    # SHORTAGE TABLE
+    # =========================================================
+
+    st.markdown("""
+    <h2 style="color:#A855F7; margin-top:40px;">
+    Shortages
+    </h2>
+    """, unsafe_allow_html=True)
+
+    st.dataframe(
+        shortage_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # =========================================================
+    # EXCESS TABLE
+    # =========================================================
+
+    st.markdown("""
+    <h2 style="color:#A855F7; margin-top:40px;">
+    Excess Inventory
+    </h2>
+    """, unsafe_allow_html=True)
+
+    st.dataframe(
+        excess_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.title("Hub Dispatch Analysis")
 
     frozen_col, ambient_col, chill_col = st.columns(3)
 

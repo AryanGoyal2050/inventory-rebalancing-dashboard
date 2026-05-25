@@ -30,7 +30,7 @@ def main():
     output_dir = Path("outputs")
     output_dir.mkdir(exist_ok=True)
 
-    inventory_path = r"inputs/vp_sheet_21_05.xlsx"
+    inventory_path = r"inputs/vp_sheet_25_05.xlsx"
     cost_matrix_path = r"inputs/cost_matrix.xlsx"
     product_master_path = r"inputs/product_list.xlsx"
 
