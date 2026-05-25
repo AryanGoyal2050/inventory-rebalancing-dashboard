@@ -89,6 +89,23 @@ def render_dispatch_manifest(
 
         st.divider()
 
+def render_hub_shortages(shortage_df):
+    st.subheader("Shortages")
+    st.dataframe(
+        shortage_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+def render_hub_excesses(excess_df):
+    st.subheader("Excess Inventory")
+    st.dataframe(
+        excess_df,
+        use_container_width=True,
+        hide_index=True
+    )
+    
+
 # TAB - 3
 
 def get_product_inventory_view(
@@ -102,62 +119,60 @@ def get_product_inventory_view(
 
     return df
 
-def render_inventory_days_chart(df):
+def render_inventory_days_chart(df, hub_df):
 
     plot_df = df.copy()
 
     # =========================================
+    # CLEAN + PREP (IMPORTANT for mapping)
+    # =========================================
+    plot_df["Hub"] = plot_df["Hub"].astype(str).str.strip()
+    hub_df["Hub"] = hub_df["Hub"].astype(str).str.strip()
+
+    # =========================================
     # SORT
     # =========================================
-
     plot_df = plot_df.sort_values(
         by="Current Inv Days",
         ascending=False
     )
 
     # =========================================
-    # CONVERT HUBS TO STRING
-    # =========================================
-
-    plot_df["Hub"] = plot_df["Hub"].astype(str)
-
-    # =========================================
     # CAP EXTREME VALUES
     # =========================================
+    MAX_DAYS_DISPLAY = 60
 
-    MAX_DAYS_DISPLAY = 100
+    plot_df["Current Display"] = plot_df["Current Inv Days"].clip(upper=MAX_DAYS_DISPLAY)
+    plot_df["Post Display"] = plot_df["Post Ship Inv Days"].clip(upper=MAX_DAYS_DISPLAY)
 
-    plot_df["Current Display"] = plot_df[
-        "Current Inv Days"
-    ].clip(upper=MAX_DAYS_DISPLAY)
+    # =========================================
+    # HUB NAME MAPPING
+    # =========================================
+    hub_map = hub_df.set_index("Hub")["Hub Compress"]
+    plot_df["Hub Name"] = plot_df["Hub"].map(hub_map)
 
-    plot_df["Post Display"] = plot_df[
-        "Post Ship Inv Days"
-    ].clip(upper=MAX_DAYS_DISPLAY)
+    # fallback if mapping fails (very important)
+    plot_df["Hub Name"].fillna(plot_df["Hub"], inplace=True)
 
     # =========================================
     # FIGURE
     # =========================================
-
     fig = go.Figure()
 
     # BEFORE
     fig.add_trace(
         go.Bar(
             name="Before Transfer",
-            x=plot_df["Hub"],
+            x=plot_df["Hub"],   # ✅ keep real key
             y=plot_df["Current Display"],
             text=plot_df["Current Inv Days"].round(1),
             textposition="outside",
-            customdata=plot_df[
-                "Current Inv Days"
-            ],
-            hovertemplate=
-            (
-                "<b>Hub:</b> %{x}<br>"
-                "<b>Inventory Days:</b> %{customdata:.2f}"
+            customdata=plot_df["Current Inv Days"],
+            hovertemplate=(
+                "<b>Hub:</b> %{customdata}<br>"
+                "<b>Inventory Days:</b> %{y:.2f}"
                 "<extra></extra>"
-            )
+            ),
         )
     )
 
@@ -165,19 +180,16 @@ def render_inventory_days_chart(df):
     fig.add_trace(
         go.Bar(
             name="After Transfer",
-            x=plot_df["Hub"],
+            x=plot_df["Hub"],   # ✅ keep real key
             y=plot_df["Post Display"],
-            customdata=plot_df[
-                "Post Ship Inv Days"
-            ],
             text=plot_df["Post Ship Inv Days"].round(1),
             textposition="outside",
-            hovertemplate=
-            (
-                "<b>Hub:</b> %{x}<br>"
-                "<b>Inventory Days:</b> %{customdata:.2f}"
+            customdata=plot_df["Post Ship Inv Days"],
+            hovertemplate=(
+                "<b>Hub:</b> %{customdata}<br>"
+                "<b>Inventory Days:</b> %{y:.2f}"
                 "<extra></extra>"
-            )
+            ),
         )
     )
 
@@ -189,102 +201,81 @@ def render_inventory_days_chart(df):
     )
 
     # =========================================
-    # LAYOUT
+    # LAYOUT (KEY PART FOR DISPLAY)
     # =========================================
-
     fig.update_layout(
-
         title="Inventory Days by Hub",
-
         barmode="group",
-
         height=600,
-
         xaxis_title="Hub",
-
         yaxis_title="Inventory Days",
 
-        yaxis=dict(
-            range=[0, MAX_DAYS_DISPLAY]
-        ),
+        yaxis=dict(range=[0, MAX_DAYS_DISPLAY]),
 
-        # IMPORTANT FIX
+        # ✅ THIS IS THE IMPORTANT PART
         xaxis=dict(
             type="category",
             tickmode="array",
-            tickvals=plot_df["Hub"],
-            ticktext=plot_df["Hub"]
+            tickvals=plot_df["Hub"],        # real values
+            ticktext=plot_df["Hub Name"],   # display names
+            tickangle=-45
         )
     )
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    st.plotly_chart(fig, use_container_width=True)
 
-def render_inventory_quantity_chart(df):
+def render_inventory_quantity_chart(df, hub_df):
 
     plot_df = df.copy()
 
     # =========================================
+    # CLEAN + PREP (IMPORTANT)
+    # =========================================
+    plot_df["Hub"] = plot_df["Hub"].astype(str).str.strip()
+    hub_df["Hub"] = hub_df["Hub"].astype(str).str.strip()
+
+    # =========================================
     # SORT
     # =========================================
-
     plot_df = plot_df.sort_values(
         by="Current Inv",
         ascending=False
     )
 
     # =========================================
-    # CONVERT HUBS TO STRING
+    # CONVERT TO MT
     # =========================================
-
-    plot_df["Hub"] = plot_df["Hub"].astype(str)
+    plot_df["Current Inv MT"] = plot_df["Current Inv"] / 1000
+    plot_df["Post Ship Inv MT"] = plot_df["Post Ship Inv"] / 1000
 
     # =========================================
-    # CONVERT TO MT FOR BETTER READABILITY
+    # HUB NAME MAPPING
     # =========================================
+    hub_map = hub_df.set_index("Hub")["Hub Compress"]
+    plot_df["Hub Name"] = plot_df["Hub"].map(hub_map)
 
-    plot_df["Current Inv MT"] = (
-        plot_df["Current Inv"] / 1000
-    )
-
-    plot_df["Post Ship Inv MT"] = (
-        plot_df["Post Ship Inv"] / 1000
-    )
+    # fallback if mapping fails
+    plot_df["Hub Name"].fillna(plot_df["Hub"], inplace=True)
 
     # =========================================
     # FIGURE
     # =========================================
-
     fig = go.Figure()
 
     # BEFORE
     fig.add_trace(
         go.Bar(
             name="Before Transfer",
-
-            x=plot_df["Hub"],
-
+            x=plot_df["Hub"],   # ✅ keep real key
             y=plot_df["Current Inv MT"],
-
-            text=plot_df[
-                "Current Inv MT"
-            ].round(1),
-
+            text=plot_df["Current Inv MT"].round(1),
             textposition="outside",
-
-            customdata=plot_df[
-                "Current Inv"
-            ],
-
-            hovertemplate=
-            (
+            customdata=plot_df["Current Inv"],
+            hovertemplate=(
                 "<b>Hub:</b> %{x}<br>"
                 "<b>Inventory:</b> %{customdata:,.0f} kg"
                 "<extra></extra>"
             ),
-
             width=0.4
         )
     )
@@ -293,46 +284,28 @@ def render_inventory_quantity_chart(df):
     fig.add_trace(
         go.Bar(
             name="After Transfer",
-
-            x=plot_df["Hub"],
-
+            x=plot_df["Hub"],   # ✅ keep real key
             y=plot_df["Post Ship Inv MT"],
-
-            text=plot_df[
-                "Post Ship Inv MT"
-            ].round(1),
-
+            text=plot_df["Post Ship Inv MT"].round(1),
             textposition="outside",
-
-            customdata=plot_df[
-                "Post Ship Inv"
-            ],
-
-            hovertemplate=
-            (
+            customdata=plot_df["Post Ship Inv"],
+            hovertemplate=(
                 "<b>Hub:</b> %{x}<br>"
                 "<b>Inventory:</b> %{customdata:,.0f} kg"
                 "<extra></extra>"
             ),
-
             width=0.4
         )
     )
 
     # =========================================
-    # LAYOUT
+    # LAYOUT (DISPLAY HUB NAME)
     # =========================================
-
     fig.update_layout(
-
         title="Inventory Quantity by Hub",
-
         barmode="group",
-
         height=600,
-
         xaxis_title="Hub",
-
         yaxis_title="Inventory Quantity (MT)",
 
         uniformtext_minsize=8,
@@ -341,28 +314,22 @@ def render_inventory_quantity_chart(df):
         xaxis=dict(
             type="category",
             tickmode="array",
-            tickvals=plot_df["Hub"],
-            ticktext=plot_df["Hub"],
+            tickvals=plot_df["Hub"],        # real keys
+            ticktext=plot_df["Hub Name"],   # display names
             tickangle=-45
         )
     )
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    st.plotly_chart(fig, use_container_width=True)
 
 def render_shortage_table(df):
 
     shortage_df = df.copy()
 
     shortage_df["Shortage Qty"] = (
-
-        shortage_df["RF"]
+        shortage_df["RF"] / 30
         *
-        (21 - shortage_df["Post Ship Inv Days"])
-        / 30
-
+        (21 - shortage_df["Current Inv Days"])
     ).clip(lower=0)
 
     shortage_df = shortage_df[
@@ -377,23 +344,26 @@ def render_shortage_table(df):
     shortage_df = shortage_df[
         [
             "Hub",
-            "Post Ship Inv Days",
+            "Current Inv Days",
             "Shortage Qty"
         ]
     ]
 
     shortage_df.rename(
         columns={
-            "Post Ship Inv Days": "Inv Days",
             "Shortage Qty": "Shortage (kg)"
         },
         inplace=True
     )
 
+    shortage_df["Hub Name"] = shortage_df["Hub"].map(
+        hub_df.set_index("Hub")["Hub Compress"]
+    )
+
     st.subheader("Shortages")
 
     st.dataframe(
-        shortage_df,
+        shortage_df["Hub, Hub Name, Current Inv Days, Shortage (kg)".split(", ")],
         use_container_width=True,
         hide_index=True
     )
@@ -403,7 +373,7 @@ def render_excess_table(df):
     excess_df = df.copy()
 
     excess_df["Excess Qty"] = (
-        excess_df["Post Ship Inv Days"]
+        excess_df["Current Inv Days"]
         - 21
     ) * excess_df["RF"] / 30
 
@@ -423,23 +393,26 @@ def render_excess_table(df):
     excess_df = excess_df[
         [
             "Hub",
-            "Post Ship Inv Days",
+            "Current Inv Days",
             "Excess Qty"
         ]
     ]
 
     excess_df.rename(
         columns={
-            "Post Ship Inv Days": "Inv Days",
             "Excess Qty": "Excess (kg)"
         },
         inplace=True
     )
 
+    excess_df["Hub Name"] = excess_df["Hub"].map(
+        hub_df.set_index("Hub")["Hub Compress"]
+    )
+
     st.subheader("Excess")
 
     st.dataframe(
-        excess_df,
+        excess_df["Hub, Hub Name, Current Inv Days, Excess (kg)".split(", ")],
         use_container_width=True,
         hide_index=True
     )
@@ -659,37 +632,13 @@ with tab2:
         ascending=False
     )
 
-    # =========================================================
-    # SHORTAGE TABLE
-    # =========================================================
+    shortage_col, excess_col = st.columns(2)
 
-    st.markdown("""
-    <h2 style="color:#A855F7; margin-top:40px;">
-    Shortages
-    </h2>
-    """, unsafe_allow_html=True)
+    with shortage_col:
+        render_hub_shortages(shortage_df)
 
-    st.dataframe(
-        shortage_df,
-        use_container_width=True,
-        hide_index=True
-    )
-
-    # =========================================================
-    # EXCESS TABLE
-    # =========================================================
-
-    st.markdown("""
-    <h2 style="color:#A855F7; margin-top:40px;">
-    Excess Inventory
-    </h2>
-    """, unsafe_allow_html=True)
-
-    st.dataframe(
-        excess_df,
-        use_container_width=True,
-        hide_index=True
-    )
+    with excess_col:
+        render_hub_excesses(excess_df)
 
     st.title("Hub Dispatch Analysis")
 
@@ -741,27 +690,25 @@ with tab3:
         selected_product
     )
 
-
-    render_inventory_days_chart(
-        product_df
-    )
-
-
-    render_inventory_quantity_chart(
-        product_df
-    )
-
     shortage_col, excess_col = st.columns(2)
 
     with shortage_col:
-
         render_shortage_table(
             product_df
         )
 
     with excess_col:
-
         render_excess_table(
             product_df
         )
 
+    render_inventory_days_chart(
+        product_df[(product_df["RF"] > 0) | (product_df["Current Inv"] > 0)],
+        hub_df
+    )
+
+
+    render_inventory_quantity_chart(
+        product_df[(product_df["RF"] > 0) | (product_df["Current Inv"] > 0)],
+        hub_df
+    )
