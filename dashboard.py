@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import subprocess
 import time
+import os
 
 from dashboard_utils import *
 
@@ -42,9 +43,10 @@ st.title("Inventory Rebalancing Dashboard")
 # TABS
 # ==========================================
 
-tab0, tab1, tab2, tab3, tab4 = st.tabs(
+tab0, tab_prod, tab1, tab2, tab3, tab4 = st.tabs(
     [
         "Control Centre",
+        "Production Plan",
         "Overall Summary",
         "Hub View",
         "Product View",
@@ -57,13 +59,8 @@ tab0, tab1, tab2, tab3, tab4 = st.tabs(
 # ==========================================
 
 with tab0:
-
     st.title("Control Center")
-
-    st.markdown("---")
-
     st.subheader("Optimization Engine")
-
     st.write(
         """
         Click the button below to:
@@ -87,7 +84,6 @@ with tab0:
         with st.spinner(
             "Running optimization engine..."
         ):
-
             try:
                 result = subprocess.run(
                     ["python", "main.py"],
@@ -95,11 +91,8 @@ with tab0:
                     text=True
                 )
 
-                st.success(
-                    "Optimization completed successfully."
-                )
-
-                st.code(result.stdout)
+                # st.code(result.stdout)
+                st.success("Optimization completed successfully.")
 
                 # Small delay
                 time.sleep(2)
@@ -107,9 +100,66 @@ with tab0:
                 st.rerun()
 
             except Exception as e:
+                st.code(result.stdout)
                 st.error(
                     f"Optimization failed: {e}"
                 )
+
+# ==========================================
+# TAB PROD - Produciton Planning
+# ==========================================
+
+with tab_prod:
+
+    st.title("Production Planning")
+
+    production_file = "inputs/production_plan.xlsx"
+
+    # =====================================
+    # LOAD EXISTING FILE
+    # =====================================
+
+    if os.path.exists(production_file):
+        production_df = pd.read_excel(
+            production_file
+        )
+
+    else:
+        production_df = pd.DataFrame(
+            columns=[
+                "Product",
+                "Hub",
+                "Production Qty"
+            ]
+        )
+
+    # =====================================
+    # EDITABLE TABLE
+    # =====================================
+
+    edited_df = st.data_editor(
+        production_df,
+        num_rows="dynamic",
+        use_container_width=True
+    )
+
+    # =====================================
+    # SAVE BUTTON
+    # =====================================
+
+    if st.button("Save Production Plan"):
+
+        edited_df.to_excel(
+            production_file,
+            index=False
+        )
+
+        st.success(
+            "Production plan updated successfully."
+        )
+
+        st.rerun()
+
 
 # ==========================================
 # TAB 1

@@ -33,10 +33,17 @@ def main():
     inventory_path = r"inputs/vp_sheet_25_05.xlsx"
     cost_matrix_path = r"inputs/cost_matrix.xlsx"
     product_master_path = r"inputs/product_list.xlsx"
+    production_plan_path = r"inputs/production_plan.xlsx"
 
     inventory_df = load_inventory_data(inventory_path)
     cost_matrix = load_cost_matrix(cost_matrix_path)
     cost_matrix = build_adjusted_cost_matrix(cost_matrix)
+    production_df = load_production_plan(production_plan_path)
+
+    inventory_df = merge_production_into_inventory(inventory_df, production_df)
+
+    print(f"inventory_df: \n{inventory_df}")
+    print(f"production_df: \n{production_df}")
 
     inventory_hubs = set(inventory_df["Hub"].unique())
     matrix_hubs = set(cost_matrix.index)

@@ -99,6 +99,9 @@ def build_adjusted_cost_matrix(
 
     return adjusted
 
+def load_production_plan(production_plan_path):
+    return pd.read_excel(production_plan_path)
+
 
 def calculate_inventory_days(df):
 
@@ -594,3 +597,62 @@ def generate_route_analysis(shipment_summary_df):
     )
 
     return route_df
+
+def merge_production_into_inventory(inventory_df, production_df):
+    
+    # =====================================
+    # CLEAN TYPES
+    # =====================================
+
+    inventory_df["Hub"] = inventory_df["Hub"].astype(int)
+    inventory_df["Product"] = inventory_df["Product"].astype(int)
+
+    production_df["Hub"] = production_df["Hub"].astype(int)
+    production_df["Product"] = production_df["Product"].astype(int)
+
+    production_df["Production Qty"] = pd.to_numeric(
+        production_df["Production Qty"],
+        errors="coerce"
+    ).fillna(0)
+
+    # =====================================
+    # AGGREGATE PRODUCTION
+    # =====================================
+
+    production_summary = (
+        production_df
+        .groupby(
+            ["Hub", "Product"],
+            as_index=False
+        )["Production Qty"]
+        .sum()
+    )
+
+    # =====================================
+    # MERGE
+    # =====================================
+
+    merged_df = inventory_df.merge(
+        production_summary,
+        on=["Hub", "Product"],
+        how="left"
+    )
+
+    merged_df["Production Qty"] = (
+        merged_df["Production Qty"]
+        .fillna(0)
+    )
+
+    # =====================================
+    # ADD INTO RT
+    # =====================================
+
+    merged_df["RT"] = (
+        merged_df["RT"]
+        +
+        merged_df["Production Qty"]
+    )
+
+    merged_df.drop(columns = ["Production Qty"], inplace = True)
+
+    return merged_df
