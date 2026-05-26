@@ -147,7 +147,11 @@ with tab_prod:
     # SAVE BUTTON
     # =====================================
 
-    if st.button("Save Production Plan"):
+    if st.button(
+        "Save Production Plan",
+        type = "primary",
+        use_container_width = True
+    ):
 
         edited_df.to_excel(
             production_file,
@@ -221,17 +225,29 @@ with tab1:
 
 with tab2:
 
-    hub_list = sorted(
-        shipment_df["From"].unique()
+    # =====================================
+    # HUB DROPDOWN OPTIONS
+    # =====================================
+
+    hub_options_df = (
+        hub_df[
+            ["Hub", "Hub Compress"]
+        ]
+        .drop_duplicates()
+        .sort_values("Hub")
     )
 
-    st.title("Select Hub")
-    
-    selected_hub = st.selectbox(
+    hub_options = {
+        f"{row['Hub Compress']}": row["Hub"]
+        for _, row in hub_options_df.iterrows()
+    }
+
+    selected_hub_label = st.selectbox(
         "Select Hub",
-        hub_list,
-        label_visibility="collapsed"
+        list(hub_options.keys())
     )
+
+    selected_hub = hub_options[selected_hub_label]
 
     hub_inventory_df = inventory_df[
         inventory_df["Hub"] == selected_hub
@@ -387,14 +403,30 @@ with tab3:
 
     st.title("Product Analysis")
 
-    product_list = sorted(
-        inventory_df["Product"].unique()
+    # =====================================
+    # PRODUCT DROPDOWN OPTIONS
+    # =====================================
+
+    product_options_df = (
+        product_df[
+            ["Product", "Product Name"]
+        ]
+        .drop_duplicates()
+        .sort_values("Product")
     )
 
-    selected_product = st.selectbox(
+    product_options = {
+        f"{row['Product Name']} ({row['Product']})": row["Product"]
+        for _, row in product_options_df.iterrows()
+    }
+
+    selected_product_label = st.selectbox(
         "Select Product",
-        product_list
+        list(product_options.keys())
     )
+
+    selected_product = product_options[selected_product_label]
+
 
     product_inventory_df = get_product_inventory_view(
         inventory_df,
