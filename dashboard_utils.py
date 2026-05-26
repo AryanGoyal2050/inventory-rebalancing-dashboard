@@ -360,7 +360,7 @@ def render_shortage_table(df, hub_df):
         hide_index=True
     )
 
-def render_excess_table(df):
+def render_excess_table(df, hub_df):
 
     excess_df = df.copy()
 

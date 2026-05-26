@@ -355,12 +355,14 @@ with tab3:
 
     with shortage_col:
         render_shortage_table(
-            product_inventory_df
+            product_inventory_df,
+            hub_df
         )
 
     with excess_col:
         render_excess_table(
-            product_inventory_df
+            product_inventory_df,
+            hub_df
         )
 
     render_inventory_days_chart(
