@@ -43,11 +43,11 @@ st.title("Inventory Rebalancing Dashboard")
 # TABS
 # ==========================================
 
-tab0, tab_prod, tab1, tab2, tab3, tab4 = st.tabs(
+tab0, tab_prod, tab2, tab3, tab4 = st.tabs(
     [
         "Control Centre",
         "Production Plan",
-        "Overall Summary",
+        # "Overall Summary",
         "Hub View",
         "Product View",
         "Planning View"
@@ -169,55 +169,55 @@ with tab_prod:
 # TAB 1
 # ==========================================
 
-with tab1:
+# with tab1:
 
-    st.title("Overall Summary")
+#     st.title("Overall Summary")
 
-    # --------------------------------------
-    # TOP OUTGOING
-    # --------------------------------------
+#     # --------------------------------------
+#     # TOP OUTGOING
+#     # --------------------------------------
 
-    st.subheader("Top Outgoing Routes")
+#     st.subheader("Top Outgoing Routes")
 
-    outgoing_df = (
-        route_df
-        .sort_values(
-            by="Total Qty",
-            ascending=False
-        )
-        .head(20)
-    )
+#     outgoing_df = (
+#         route_df
+#         .sort_values(
+#             by="Total Qty",
+#             ascending=False
+#         )
+#         .head(20)
+#     )
 
-    st.dataframe(
-        outgoing_df,
-        use_container_width=True
-    )
+#     st.dataframe(
+#         outgoing_df,
+#         use_container_width=True
+#     )
 
-    # --------------------------------------
-    # TOP INCOMING
-    # --------------------------------------
+#     # --------------------------------------
+#     # TOP INCOMING
+#     # --------------------------------------
 
-    st.subheader("Top Incoming Routes")
+#     st.subheader("Top Incoming Routes")
 
-    incoming_df = (
-        route_df
-        .groupby("Destination")
-        .agg(
-            {
-                "Total Qty": "sum"
-            }
-        )
-        .reset_index()
-        .sort_values(
-            by="Total Qty",
-            ascending=False
-        )
-    )
+#     incoming_df = (
+#         route_df
+#         .groupby("Destination")
+#         .agg(
+#             {
+#                 "Total Qty": "sum"
+#             }
+#         )
+#         .reset_index()
+#         .sort_values(
+#             by="Total Qty",
+#             ascending=False
+#         )
+#     )
 
-    st.dataframe(
-        incoming_df,
-        use_container_width=True
-    )
+#     st.dataframe(
+#         incoming_df,
+#         use_container_width=True
+#     )
 
 # ==========================================
 # TAB 2 - Hub View
