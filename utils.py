@@ -2,6 +2,22 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import json
+
+CONFIG_PATH = "config.json"
+
+def load_config():
+    with open(CONFIG_PATH, "r") as f:
+        config = json.load(f)
+    return config
+
+def save_config(config):
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(
+            config,
+            f,
+            indent = 4
+        )
 
 def auto_detect_column(columns, possible_names):
 
@@ -360,7 +376,7 @@ def plot_inventory_comparison(product_name, df, plot_dir):
     ax.bar(x + width/2, post_vals, width, label="After")
 
     # ✅ Target line
-    ax.axhline(y=21, linestyle="--", color="black", label="Target (21 days)")
+    ax.axhline(y=21, linestyle="--", color="black", label=f"Target (21 days)")
 
     # ✅ ✅ Dynamic Y-axis scaling
     max_y = max(original_vals.max(), post_vals.max())

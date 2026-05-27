@@ -5,13 +5,19 @@ import plotly.graph_objects as go
 import subprocess
 import time
 import os
+import json
 
 from dashboard_utils import *
+from utils import load_config
+from utils import save_config
 
 st.set_page_config(
     page_title="Inventory Rebalancing Dashboard",
     layout="wide"
 )
+
+config = load_config()
+TARGET_INV_DAYS = config["target_days"]
 
 # ==========================================
 # LOAD DATA
@@ -104,6 +110,34 @@ with tab0:
                 st.error(
                     f"Optimization failed: {e}"
                 )
+
+    st.subheader("Advanced Options")
+
+    config = load_config()
+
+    target_days = st.number_input(
+        "Target Inventory Days",
+        min_value=1,
+        max_value=120,
+        value=config["target_days"],
+        step=1
+    )
+
+    if st.button(
+        "Save Settings",
+        type="primary"
+    ):
+
+        config["target_days"] = target_days
+
+        save_config(config)
+
+        st.success(
+            "Settings updated successfully."
+        )
+
+        st.rerun()
+
 
 # ==========================================
 # TAB PROD - Produciton Planning
@@ -255,12 +289,6 @@ with tab2:
     hub_inventory_df = hub_inventory_df[
         hub_inventory_df["RF"] > 0
     ]
-
-    # =========================================================
-    # INVENTORY TARGETS
-    # =========================================================
-
-    TARGET_INV_DAYS = 21
 
     # =========================================================
     # DAILY DEMAND
@@ -438,18 +466,21 @@ with tab3:
     with shortage_col:
         render_shortage_table(
             product_inventory_df,
-            hub_df
+            hub_df,
+            TARGET_INV_DAYS
         )
 
     with excess_col:
         render_excess_table(
             product_inventory_df,
-            hub_df
+            hub_df,
+            TARGET_INV_DAYS
         )
 
     render_inventory_days_chart(
         product_inventory_df[(product_inventory_df["RF"] > 0) | (product_inventory_df["Current Inv"] > 0)],
-        hub_df
+        hub_df,
+        TARGET_INV_DAYS
     )
 
 
@@ -468,7 +499,8 @@ with tab4:
 
     planning_df = build_planning_view(
         inventory_df,
-        product_df
+        product_df,
+        TARGET_INV_DAYS
     )
 
     # ======================================

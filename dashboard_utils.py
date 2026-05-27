@@ -111,7 +111,7 @@ def get_product_inventory_view(
 
     return df
 
-def render_inventory_days_chart(df, hub_df):
+def render_inventory_days_chart(df, hub_df, TARGET_INV_DAYS):
 
     plot_df = df.copy()
 
@@ -187,9 +187,9 @@ def render_inventory_days_chart(df, hub_df):
 
     # TARGET LINE
     fig.add_hline(
-        y=21,
+        y=TARGET_INV_DAYS,
         line_dash="dash",
-        annotation_text="Target = 21 Days"
+        annotation_text=f"Target = {TARGET_INV_DAYS} Days"
     )
 
     # =========================================
@@ -314,14 +314,14 @@ def render_inventory_quantity_chart(df, hub_df):
 
     st.plotly_chart(fig, use_container_width=True)
 
-def render_shortage_table(df, hub_df):
+def render_shortage_table(df, hub_df, TARGET_INV_DAYS):
 
     shortage_df = df.copy()
 
     shortage_df["Shortage Qty"] = (
         shortage_df["RF"] / 30
         *
-        (21 - shortage_df["Current Inv Days"])
+        (TARGET_INV_DAYS - shortage_df["Current Inv Days"])
     ).clip(lower=0)
 
     shortage_df = shortage_df[
@@ -364,13 +364,13 @@ def render_shortage_table(df, hub_df):
         hide_index=True
     )
 
-def render_excess_table(df, hub_df):
+def render_excess_table(df, hub_df, TARGET_INV_DAYS):
 
     excess_df = df.copy()
 
     excess_df["Excess Qty"] = (
         excess_df["Current Inv Days"]
-        - 21
+        - TARGET_INV_DAYS
     ) * excess_df["RF"] / 30
 
     excess_df["Excess Qty"] = excess_df[
@@ -419,7 +419,7 @@ def render_excess_table(df, hub_df):
 
 # TAB - 4
 
-def build_planning_view(inventory_df, product_df):
+def build_planning_view(inventory_df, product_df, TARGET_INV_DAYS):
 
     planning_df = inventory_df.copy()
     planning_df["Product Name"] = planning_df["Product"].map(
@@ -438,7 +438,7 @@ def build_planning_view(inventory_df, product_df):
     planning_df["Shortage Kg"] = (
         planning_df["RF"] / 30
         *
-        (21 - planning_df["Post Ship Inv Days"])
+        (TARGET_INV_DAYS - planning_df["Post Ship Inv Days"])
     ).clip(lower=0)
 
     # =====================================
@@ -447,7 +447,7 @@ def build_planning_view(inventory_df, product_df):
 
     planning_df["Excess Kg"] = (
 
-        (planning_df["Post Ship Inv Days"] - 21)
+        (planning_df["Post Ship Inv Days"] - TARGET_INV_DAYS)
         *
         planning_df["RF"] / 30
     ).clip(lower=0)

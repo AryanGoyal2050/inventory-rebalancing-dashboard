@@ -4,16 +4,14 @@ from pathlib import Path
 from utils import *
 from optimizer import solve_transportation_problem
 
-TARGET_DAYS = 21
 
-
-def process_product(product_name, df_product, cost_matrix, output_dir):
+def process_product(product_name, df_product, cost_matrix, output_dir, TARGET_INV_DAYS):
 
     print(f"Processing Product: {product_name}")
 
     df_product = calculate_inventory_days(df_product)
     # print(f"1\n{df_product.head(1)}")
-    df_product = apply_water_filling(df_product, target_days=TARGET_DAYS)
+    df_product = apply_water_filling(df_product, target_days=TARGET_INV_DAYS)
     # print(f"2\n{df_product.head(1)}")
     supply, demand, df_product = generate_supply_demand(df_product)
     # print(f"3\n{df_product.head(1)}")
@@ -31,6 +29,9 @@ def process_product(product_name, df_product, cost_matrix, output_dir):
 
 
 def main():
+
+    config = load_config()
+    TARGET_INV_DAYS = config["target_days"]
 
     output_dir = Path("outputs")
     output_dir.mkdir(exist_ok=True)
@@ -65,7 +66,7 @@ def main():
 
     for product_name, df_product in product_data.items():
 
-        result = process_product(product_name, df_product, cost_matrix, output_dir)
+        result = process_product(product_name, df_product, cost_matrix, output_dir, TARGET_INV_DAYS)
 
         inventory_df_product = result["inventory_df"].copy()
         inventory_df_product["Product"] = product_name
