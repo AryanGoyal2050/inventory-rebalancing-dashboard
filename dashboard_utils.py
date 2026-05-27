@@ -336,10 +336,14 @@ def render_shortage_table(df, hub_df):
     shortage_df = shortage_df[
         [
             "Hub",
+            "RF",
+            "Sales",
             "Current Inv Days",
             "Shortage Qty"
         ]
     ]
+    shortage_df["Current Inv Days"] = shortage_df["Current Inv Days"].round(1)
+    shortage_df["Shortage Qty"] = shortage_df["Shortage Qty"].round(0)
 
     shortage_df.rename(
         columns={
@@ -355,7 +359,7 @@ def render_shortage_table(df, hub_df):
     st.subheader("Shortages")
 
     st.dataframe(
-        shortage_df["Hub, Hub Name, Current Inv Days, Shortage (kg)".split(", ")],
+        shortage_df["Hub Name, RF, Sales, Current Inv Days, Shortage (kg)".split(", ")],
         use_container_width=True,
         hide_index=True
     )
@@ -385,10 +389,14 @@ def render_excess_table(df, hub_df):
     excess_df = excess_df[
         [
             "Hub",
+            "RF",
+            "Sales",
             "Current Inv Days",
             "Excess Qty"
         ]
     ]
+    excess_df["Current Inv Days"] = excess_df["Current Inv Days"].round(1)
+    excess_df["Excess Qty"] = excess_df["Excess Qty"].round(0)
 
     excess_df.rename(
         columns={
@@ -404,7 +412,7 @@ def render_excess_table(df, hub_df):
     st.subheader("Excess")
 
     st.dataframe(
-        excess_df["Hub, Hub Name, Current Inv Days, Excess (kg)".split(", ")],
+        excess_df["Hub Name, RF, Sales, Current Inv Days, Excess (kg)".split(", ")],
         use_container_width=True,
         hide_index=True
     )

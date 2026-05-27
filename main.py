@@ -12,10 +12,15 @@ def process_product(product_name, df_product, cost_matrix, output_dir):
     print(f"Processing Product: {product_name}")
 
     df_product = calculate_inventory_days(df_product)
+    # print(f"1\n{df_product.head(1)}")
     df_product = apply_water_filling(df_product, target_days=TARGET_DAYS)
+    # print(f"2\n{df_product.head(1)}")
     supply, demand, df_product = generate_supply_demand(df_product)
+    # print(f"3\n{df_product.head(1)}")
     shipment_df, total_cost = solve_transportation_problem(supply, demand, cost_matrix)
+    # print(f"4\n{df_product.head(1)}")
     df_product = add_post_shipment_inventory(df_product, shipment_df)
+    # print(f"5\n{df_product.head(1)}")
 
     return {
         "product": product_name,
@@ -41,9 +46,6 @@ def main():
     production_df = load_production_plan(production_plan_path)
 
     inventory_df = merge_production_into_inventory(inventory_df, production_df)
-
-    print(f"inventory_df: \n{inventory_df}")
-    print(f"production_df: \n{production_df}")
 
     inventory_hubs = set(inventory_df["Hub"].unique())
     matrix_hubs = set(cost_matrix.index)

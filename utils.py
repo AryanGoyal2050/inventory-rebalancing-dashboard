@@ -22,23 +22,31 @@ def load_inventory_data(file_path):
     product_col = auto_detect_column(df.columns, ["Product"])
     rf_col = auto_detect_column(df.columns, ["RF", "forecast"])
     rt_col = auto_detect_column(df.columns, ["Ready Transit", "rt"])
+    sales_col = auto_detect_column(df.columns, ["Sales", "sales"])
+    readystock_col = auto_detect_column(df.columns, ["Ready Stock"])
 
     df = df.rename(columns={
         hub_col: "Hub",
         product_col: "Product",
         rf_col: "RF",
+        sales_col: "Sales",
+        readystock_col: "Ready Stock",
         rt_col: "RT"
     })
 
-    df = df[["Hub", "Product", "RF", "RT"]].copy()
+    df = df[["Hub", "Product", "RF", "Sales", "Ready Stock", "RT"]].copy()
 
     df["Hub"] = pd.to_numeric(df["Hub"], errors="coerce").astype(int)
     df["Product"] = pd.to_numeric(df["Product"], errors="coerce").astype(int)
 
     df["RF"] = pd.to_numeric(df["RF"], errors="coerce").fillna(0)
+    df["Sales"] = pd.to_numeric(df["Sales"], errors="coerce").fillna(0)
+    df["Ready Stock"] = pd.to_numeric(df["Ready Stock"], errors="coerce").fillna(0)
     df["RT"] = pd.to_numeric(df["RT"], errors="coerce").fillna(0)
 
     df["RF"] = df["RF"].clip(lower=0)
+    df["Sales"] = df["Sales"].clip(lower=0)
+    df["Ready Stock"] = df["Ready Stock"].clip(lower=0)
     df["RT"] = df["RT"].clip(lower=0)
 
     return df
@@ -100,6 +108,8 @@ def build_adjusted_cost_matrix(
     return adjusted
 
 def load_production_plan(production_plan_path):
+    # If file does not exist, create a new file in the same format
+    # Check the data types etc for sanity, because is entered manually
     return pd.read_excel(production_plan_path)
 
 
@@ -219,8 +229,6 @@ def apply_water_filling(df, target_days=21):
 def generate_supply_demand(df):
 
     df = df.copy()
-
-    # print(f"Calculating supply/demand with df: \n{df.head()}")
 
     # ==========================================
     # REQUIRED QTY FOR DEFICIT HUBS
@@ -501,6 +509,7 @@ def generate_inventory_summary(all_inventory, product_category_df):
             "Product",
             "Category",
             "RF",
+            "Sales",
             "RT",
             "inv_days",
             "post_ship_RT",
