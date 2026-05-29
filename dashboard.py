@@ -101,7 +101,7 @@ with tab0:
                 st.success("Optimization completed successfully.")
 
                 # Small delay
-                time.sleep(2)
+                time.sleep(0.5)
 
                 st.rerun()
 
@@ -111,24 +111,47 @@ with tab0:
                     f"Optimization failed: {e}"
                 )
 
+    # ======================================
+    # ADVANCED OPTIONS
+    # ======================================
+
     st.subheader("Advanced Options")
 
     config = load_config()
 
-    target_days = st.number_input(
-        "Target Inventory Days",
-        min_value=1,
-        max_value=120,
-        value=config["target_days"],
-        step=1
-    )
+    # FILL MODE
+    mode_display_map = {
+        "Number of Days": "days",
+        "RF Pendency": "rf_dependency",
+        "Hybrid": "hybrid"
+    }
 
+    selected_mode = st.selectbox(
+        "Inventory Target Logic",
+        options=list(mode_display_map.keys())
+    )
+    selected_mode = mode_display_map.get(selected_mode)
+
+    # TARGET DAYS OF INVENTORY
+    if selected_mode in ["days", "hybrid"]:
+        target_days = st.number_input(
+            "Target Inventory Days",
+            min_value=1,
+            max_value=120,
+            value=config["target_days"],
+            step=1
+        )
+    else:
+        target_days = config["target_days"]
+
+    # SAVE BUTTON
     if st.button(
         "Save Settings",
         type="primary"
     ):
 
         config["target_days"] = target_days
+        config["mode"] = selected_mode
 
         save_config(config)
 
@@ -136,8 +159,9 @@ with tab0:
             "Settings updated successfully."
         )
 
-        st.rerun()
+        time.sleep(0.5)
 
+        st.rerun()
 
 # ==========================================
 # TAB PROD - Produciton Planning
@@ -298,6 +322,8 @@ with tab2:
     hub_inventory_df["daily_demand"] = (
         hub_inventory_df["RF"] / 30
     )
+
+    print(f"hub_inventory_df: \n{hub_inventory_df}")
 
     # =========================================================
     # SHORTAGE / EXCESS CALCULATION

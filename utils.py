@@ -143,104 +143,247 @@ def calculate_inventory_days(df):
 
     return df
 
-
-def apply_water_filling(df, target_days=21):
+def calculate_inventory_targets(
+    df,
+    MODE="days",
+    TARGET_DAYS=21,
+    HYBRID_ALPHA=0.7
+):
 
     df = df.copy()
 
-    df["water_fill_inv_days"] = df["inv_days"]
+    # =====================================
+    # DAYS MODE
+    # =====================================
 
-    # Excess inventory pool in UNITS
-    total_excess_units = 0
+    if MODE == "days":
+        df["target_inventory"] = (
+            df["daily_demand"]
+            * TARGET_DAYS
+        )
 
-    for idx, row in df.iterrows():
+    # =====================================
+    # RF MODE
+    # =====================================
 
-        if row["RF"] <= 0:
-            continue
+    elif MODE == "rf_pendency":
+        df["target_inventory"] = df["RF"] - df["Sales"]
 
-        excess_days = max(row["inv_days"] - target_days, 0)
+    # =====================================
+    # HYBRID MODE
+    # =====================================
 
-        excess_units = excess_days * row["daily_demand"]
+    elif MODE == "hybrid":
 
-        total_excess_units += excess_units
+        days_target = (
+            df["daily_demand"]
+            * TARGET_DAYS
+        )
 
-    # Deficit hubs only
-    deficit_df = df[
-        (df["RF"] > 0) &
-        (df["inv_days"] < target_days)
+        rf_target = df["RF"]
+
+        df["target_inventory"] = (
+            HYBRID_ALPHA * days_target
+            +
+            (1 - HYBRID_ALPHA) * rf_target
+        )
+
+    else:
+        raise ValueError(
+            f"Unknown mode: {MODE}"
+        )
+
+    # =====================================
+    # CLEANUP
+    # =====================================
+
+    df["target_inventory"] = (
+        df["target_inventory"]
+        .clip(lower=0)
+    )
+
+    return df
+
+def apply_water_filling_pct(df):
+
+    df = df.copy()
+
+    # =====================================
+    # INITIALIZE
+    # =====================================
+
+    df["current_fill_pct"] = np.where(
+        df["target_inventory"] > 0,
+        df["RT"] / df["target_inventory"],
+        1
+    ) 
+    df["final_fill_pct"] = df["current_fill_pct"]
+    df["post_waterfill_inventory"] = df["RT"]
+
+    # =====================================
+    # VALID TARGETS ONLY
+    # =====================================
+
+    valid_df = df[
+        df["target_inventory"] >= 0
     ].copy()
 
-    if deficit_df.empty or total_excess_units <= 0:
+    if valid_df.empty:
         return df
 
+    # =====================================
+    # COMPUTE EXCESS INVENTORY
+    # =====================================
+
+    valid_df["excess_inventory"] = (
+        valid_df["RT"]
+        -
+        valid_df["target_inventory"]
+    ).clip(lower=0)
+
+    total_excess_inventory = (
+        valid_df["excess_inventory"].sum()
+    )
+
+    if total_excess_inventory <= 0:
+        return df
+
+    # =====================================
+    # DEFICIT HUBS
+    # =====================================
+
+    deficit_df = valid_df[
+        valid_df["current_fill_pct"] < 1
+    ].copy()
+
+    if deficit_df.empty:
+        return df
+
+    # =====================================
+    # SORT BY LOWEST FILL %
+    # =====================================
+
     deficit_df = deficit_df.sort_values(
-        by="inv_days"
+        by="current_fill_pct"
     ).reset_index()
 
-    levels = deficit_df["inv_days"].tolist()
-    demands = deficit_df["daily_demand"].tolist()
+    fill_levels = deficit_df[
+        "current_fill_pct"
+    ].tolist()
+
+    targets = deficit_df[
+        "target_inventory"
+    ].tolist()
 
     n = len(deficit_df)
 
-    remaining_units = total_excess_units
+    remaining_inventory = (
+        total_excess_inventory
+    )
 
     i = 0
-    while i < n:
-        current_level = levels[i]
-        
-        if i == n - 1:
-            next_level = target_days
-        else:
-            next_level = min(levels[i + 1], target_days)
 
-        if current_level >= target_days:
+    # =====================================
+    # WATER FILL LOOP
+    # =====================================
+
+    while i < n:
+        current_fill = fill_levels[i]
+        if i == n - 1:
+            next_fill = 1.0
+
+        else:
+            next_fill = min(
+                fill_levels[i + 1],
+                1.0
+            )
+
+        if current_fill >= 1.0:
             break
 
         active_indices = list(range(i + 1))
 
-        total_daily_demand = sum(
-            demands[j] for j in active_indices
-        )
+        required_inventory = 0
 
-        level_gap = next_level - current_level
+        for j in active_indices:
+            required_inventory += (
+                targets[j]
+                *
+                (next_fill - fill_levels[j])
+            )
 
-        required_units = (
-            total_daily_demand * level_gap
-        )
+        # =================================
+        # FULL STEP POSSIBLE
+        # =================================
 
-        if remaining_units >= required_units:
+        if remaining_inventory >= required_inventory:
 
             for j in active_indices:
-                levels[j] = next_level
+                fill_levels[j] = next_fill
 
-            remaining_units -= required_units
+            remaining_inventory -= (
+                required_inventory
+            )
 
             i += 1
 
+        # =================================
+        # PARTIAL STEP
+        # =================================
+
         else:
+            total_target = sum(
+                targets[j]
+                for j in active_indices
+            )
 
             possible_increase = (
-                remaining_units / total_daily_demand
+                remaining_inventory
+                /
+                total_target
             )
 
             for j in active_indices:
-                levels[j] += possible_increase
 
-            remaining_units = 0
+                fill_levels[j] += (
+                    possible_increase
+                )
+
+            remaining_inventory = 0
+
             break
-    
-    # Write back final levels
+
+    # =====================================
+    # WRITE BACK
+    # =====================================
+
     for idx2, row in deficit_df.iterrows():
 
         original_index = row["index"]
+        final_fill = fill_levels[idx2]
+        target_inventory = row[
+            "target_inventory"
+        ]
+
+        final_inventory = (
+            final_fill
+            *
+            target_inventory
+        )
 
         df.loc[
             original_index,
-            "water_fill_inv_days"
-        ] = levels[idx2]
+            "final_fill_pct"
+        ] = final_fill
+
+        df.loc[
+            original_index,
+            "post_waterfill_inventory"
+        ] = final_inventory
+    
+    df.drop(columns=["current_fill_pct", "final_fill_pct"], inplace=True)
 
     return df
-
 
 def generate_supply_demand(df):
 
@@ -251,20 +394,14 @@ def generate_supply_demand(df):
     # ==========================================
 
     df["required_qty"] = np.where(
-        df["water_fill_inv_days"] > df["inv_days"],
-        (df["water_fill_inv_days"] - df["inv_days"])*df["daily_demand"],
+        df["post_waterfill_inventory"] > df["RT"],
+        (df["post_waterfill_inventory"] - df["RT"]),
         0
     )
 
     # ==========================================
     # SUPPLY
     # ==========================================
-
-    df["target_inventory"] = np.where(
-        df["RF"] > 0,
-        21*df["RF"]/30,
-        0
-    )
 
     df["excess_qty"] = np.where(
         df["RF"] == 0,
@@ -280,8 +417,6 @@ def generate_supply_demand(df):
         .to_dict()
     )
 
-    df.drop(columns=["target_inventory", "excess_qty"], inplace=True)
-
     # ==========================================
     # DEMAND
     # ==========================================
@@ -293,8 +428,8 @@ def generate_supply_demand(df):
         .round(2)
         .to_dict()
     )
-
-    df.drop(columns=["water_fill_inv_days", "required_qty"], inplace=True)
+    
+    df.drop(columns=["post_waterfill_inventory", "required_qty", "excess_qty"], inplace=True)
 
     return supply, demand, df
 

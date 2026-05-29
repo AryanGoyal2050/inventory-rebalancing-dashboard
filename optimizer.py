@@ -9,6 +9,7 @@ def solve_transportation_problem(
     cost_matrix
 ):
     
+    # Use scale factor for precision, because only integers are accepted
     SCALE_FACTOR = 100
 
     supply = {
@@ -20,7 +21,6 @@ def solve_transportation_problem(
         k: int(round(v * SCALE_FACTOR))
         for k, v in demand.items()
     }
-
 
     total_supply = sum(supply.values())
     total_demand = sum(demand.values())
@@ -79,22 +79,18 @@ def solve_transportation_problem(
             )
 
     # ==========================================
-    # DUMMY NODE
+    # DUMMY NODE for accomodating excess supply 
     # ==========================================
 
     total_supply = sum(supply.values())
-
     total_demand = sum(demand.values())
-
     excess_inventory = max(
         total_supply - total_demand,
         0
     )
 
     if excess_inventory > 0:
-
         for source_hub, supply_qty in supply.items():
-
             solver.add_arc_with_capacity_and_unit_cost(
                 hub_to_node[source_hub],
                 dummy_node,

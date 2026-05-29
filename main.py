@@ -5,25 +5,30 @@ from utils import *
 from optimizer import solve_transportation_problem
 
 
-def process_product(product_name, df_product, cost_matrix, output_dir, TARGET_INV_DAYS):
+def process_product(product_name, df_product, cost_matrix, output_dir, TARGET_INV_DAYS, FILL_LOGIC):
 
     print(f"Processing Product: {product_name}")
 
     df_product = calculate_inventory_days(df_product)
-    # print(f"1\n{df_product.head(1)}")
-    df_product = apply_water_filling(df_product, target_days=TARGET_INV_DAYS)
-    # print(f"2\n{df_product.head(1)}")
-    supply, demand, df_product = generate_supply_demand(df_product)
-    # print(f"3\n{df_product.head(1)}")
+    # print(f"df_product\n{df_product.head()}")
+    # MODE:"days", "rf_pendency", "hybrid" 
+    df_product_targets = calculate_inventory_targets(df_product, MODE="days", TARGET_DAYS=TARGET_INV_DAYS)
+    # print(f"mode: {FILL_LOGIC} -- target inv days: {TARGET_INV_DAYS}")
+    # print(f"df_product_targets: \n{df_product_targets}")
+    df_product_waterfill = apply_water_filling_pct(df_product_targets)
+    # print(f"df_product_waterfill: \n{df_product_waterfill}")
+    supply, demand, df_product = generate_supply_demand(df_product_waterfill)
+    # print(f"supply: {supply}")
+    # print(f"demand: {demand}")
+    # print(f"df_product after demand_supply: \n{df_product}")
     shipment_df, total_cost = solve_transportation_problem(supply, demand, cost_matrix)
-    # print(f"4\n{df_product.head(1)}")
-    df_product = add_post_shipment_inventory(df_product, shipment_df)
-    # print(f"5\n{df_product.head(1)}")
+    post_shipment_df_product = add_post_shipment_inventory(df_product, shipment_df)
+    # print(f"post_shipment_df_product: \n{post_shipment_df_product.head()}")
 
     return {
         "product": product_name,
         "cost": total_cost,
-        "inventory_df": df_product,
+        "inventory_df": post_shipment_df_product,
         "shipment_df": shipment_df
     }
 
@@ -32,6 +37,7 @@ def main():
 
     config = load_config()
     TARGET_INV_DAYS = config["target_days"]
+    FILL_LOGIC = config["fill_logic"]
 
     output_dir = Path("outputs")
     output_dir.mkdir(exist_ok=True)
@@ -66,7 +72,10 @@ def main():
 
     for product_name, df_product in product_data.items():
 
-        result = process_product(product_name, df_product, cost_matrix, output_dir, TARGET_INV_DAYS)
+        # if not product_name == 6982:
+        #     continue
+
+        result = process_product(product_name, df_product, cost_matrix, output_dir, TARGET_INV_DAYS, FILL_LOGIC)
 
         inventory_df_product = result["inventory_df"].copy()
         inventory_df_product["Product"] = product_name
